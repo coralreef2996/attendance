@@ -16,8 +16,29 @@ class AttendanceApp extends StatelessWidget {
     return MaterialApp(
       title: '勤怠管理',
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
+        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFFE65100)),
         useMaterial3: true,
+        appBarTheme: const AppBarTheme(
+          backgroundColor: Colors.white,
+          surfaceTintColor: Colors.white,
+          foregroundColor: Color(0xFF1A1A1A),
+          elevation: 0,
+          toolbarHeight: 56.0,
+          centerTitle: true,
+          titleTextStyle: TextStyle(
+            color: Color(0xFF1A1A1A),
+            fontSize: 20.0,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        elevatedButtonTheme: ElevatedButtonThemeData(
+          style: ElevatedButton.styleFrom(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16.0),
+            ),
+            elevation: 2,
+          ),
+        ),
       ),
       home: const LoginScreen(
         appName: '勤怠管理',
@@ -155,6 +176,42 @@ class Member {
       workHistory: workHistory,
     );
   }
+
+  static Map<String, Map<String, String?>> generateDummyWorkHistory() {
+    final Map<String, Map<String, String?>> history = {};
+    final now = DateTime.now();
+
+    // Generate dummy data for the last 30 days
+    for (int i = 1; i <= 30; i++) {
+      final date = now.subtract(Duration(days: i));
+
+      // Skip weekends (Saturday=6, Sunday=7)
+      if (date.weekday == DateTime.saturday || date.weekday == DateTime.sunday) {
+        continue;
+      }
+
+      final dateStr =
+          "${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}";
+
+      // Add realistic times (e.g. clock-in between 9:45 and 10:15, clock-out between 15:00 and 17:30)
+      // To make it deterministic yet varied, we can use the date's day of month
+      final startMinute = (date.day * 7) % 30; // 0 to 29
+      final startHour = date.day % 2 == 0 ? 9 : 10;
+      final endMinute = (date.day * 13) % 60; // 0 to 59
+      final endHour = 15 + (date.day % 3); // 15, 16, 17
+
+      final attendanceStr =
+          "${startHour.toString().padLeft(2, '0')}:${startMinute.toString().padLeft(2, '0')}";
+      final leaveStr =
+          "${endHour.toString().padLeft(2, '0')}:${endMinute.toString().padLeft(2, '0')}";
+
+      history[dateStr] = {
+        'attendanceTime': attendanceStr,
+        'leaveTime': leaveStr,
+      };
+    }
+    return history;
+  }
 }
 
 // 休憩場所（ソファーなど）の情報を管理するクラス
@@ -172,6 +229,75 @@ class BreakSpot {
   });
 }
 
+// 利用者共通ヘッダー（設定・使い方）
+Widget buildAttendanceUserHeader(BuildContext context) {
+  return Padding(
+    padding: const EdgeInsets.only(top: 12.0, left: 16.0, right: 16.0, bottom: 12.0),
+    child: Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        OutlinedButton.icon(
+          onPressed: () {},
+          style: OutlinedButton.styleFrom(
+            backgroundColor: Colors.white,
+            foregroundColor: const Color(0xFF532900),
+            side: BorderSide(color: const Color(0xFF532900).withOpacity(0.5)),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.0)),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+          ),
+          icon: const Icon(Icons.settings, size: 18),
+          label: const Text('設定'),
+        ),
+        PopupMenuButton<String>(
+          color: Colors.white,
+          surfaceTintColor: Colors.white,
+          onSelected: (String value) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                backgroundColor: const Color(0xFF532900),
+                content: Text('$value が選択されました', style: const TextStyle(color: Colors.white)),
+                duration: const Duration(seconds: 2),
+              ),
+            );
+          },
+          itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
+            const PopupMenuItem<String>(
+              value: '使い方１',
+              child: Text('使い方１', style: TextStyle(color: Color(0xFF532900))),
+            ),
+            const PopupMenuItem<String>(
+              value: '使い方２',
+              child: Text('使い方２', style: TextStyle(color: Color(0xFF532900))),
+            ),
+            const PopupMenuItem<String>(
+              value: '使い方３',
+              child: Text('使い方３', style: TextStyle(color: Color(0xFF532900))),
+            ),
+          ],
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16.0),
+              border: Border.all(color: const Color(0xFF532900).withOpacity(0.5)),
+            ),
+            child: const Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.help_outline, size: 18, color: Color(0xFF532900)),
+                SizedBox(width: 6),
+                Text('使い方', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFF532900))),
+                SizedBox(width: 4),
+                Icon(Icons.arrow_drop_down, size: 18, color: Color(0xFF532900)),
+              ],
+            ),
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
 // 週間シフト表示画面
 class WeeklyShiftScreen extends StatelessWidget {
   final Member member;
@@ -181,7 +307,21 @@ class WeeklyShiftScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('${member.name}の週間シフト')),
+      appBar: AppBar(
+        title: Text(
+          '${member.name}の週間シフト',
+          style: const TextStyle(
+            color: Color(0xFF1A1A1A),
+            fontSize: 20.0,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        toolbarHeight: 56.0,
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.white,
+        elevation: 0,
+        centerTitle: true,
+      ),
       body: Container(
         decoration: const BoxDecoration(
           gradient: LinearGradient(
@@ -190,28 +330,33 @@ class WeeklyShiftScreen extends StatelessWidget {
             colors: [Color(0xFFFFFFFF), Color(0xFFFFDFBF)],
           ),
         ),
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
+        child: SingleChildScrollView(
           child: Column(
             children: [
-              const Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    '曜日 / 日付',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                  ),
-                  Text(
-                    '勤務予定',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                  ),
-                ],
-              ),
-              const Divider(thickness: 2),
-              Expanded(
-                child: ListView.separated(
-                  itemCount: 7,
-                  separatorBuilder: (context, index) => const Divider(),
+              buildAttendanceUserHeader(context),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                child: Column(
+                  children: [
+                    const Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          '曜日 / 日付',
+                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                        ),
+                        Text(
+                          '勤務予定',
+                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                        ),
+                      ],
+                    ),
+                    const Divider(thickness: 2),
+                    ListView.separated(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      itemCount: 7,
+                      separatorBuilder: (context, index) => const Divider(),
                   itemBuilder: (context, index) {
                     final days = ['月', '火', '水', '木', '金', '土', '日'];
                     final now = DateTime.now();
@@ -224,24 +369,25 @@ class WeeklyShiftScreen extends StatelessWidget {
                     final state =
                         ShiftConfirmScreen.confirmedShifts[date.day] ?? 0;
 
-                    String statusLabel = '休み';
-                    Color btnColor = Colors.grey[300]!;
+                    String statusLabel = '未定';
+                    Color btnColor = Colors.grey[200]!;
+
                     switch (state) {
                       case 1:
                         statusLabel = '10:00~15:00';
-                        btnColor = Colors.blue;
+                        btnColor = const Color(0xFF1B2A47);
                         break;
                       case 2:
                         statusLabel = '10:00~15:00';
-                        btnColor = Colors.lightBlue;
+                        btnColor = const Color(0xFF5C6BC0);
                         break;
                       case 3:
                         statusLabel = '10:00~15:00';
-                        btnColor = const Color(0xFF98D8C8);
+                        btnColor = const Color(0xFFAB47BC);
                         break;
                       case 4:
                         statusLabel = '休み'; // 有給も休みと表示
-                        btnColor = Colors.green;
+                        btnColor = const Color(0xFFF48FB1);
                         break;
                     }
 
@@ -305,41 +451,43 @@ class WeeklyShiftScreen extends StatelessWidget {
                     );
                   },
                 ),
-              ),
-              // 凡例の追加
-              Container(
-                margin: const EdgeInsets.only(top: 16),
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.8),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.orange.withOpacity(0.3)),
+                // 凡例の追加
+                Container(
+                  margin: const EdgeInsets.only(top: 16, bottom: 24),
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.8),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.orange.withOpacity(0.3)),
+                  ),
+                  child: Column(
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceAround,
+                        children: [
+                          _buildLegendItem(const Color(0xFF1B2A47), '出勤'),
+                          _buildLegendItem(const Color(0xFF5C6BC0), 'リモート'),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceAround,
+                        children: [
+                          _buildLegendItem(const Color(0xFFAB47BC), '可能性あり'),
+                          _buildLegendItem(const Color(0xFFF48FB1), '有給'),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
-                child: Column(
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceAround,
-                      children: [
-                        _buildLegendItem(Colors.blue, '出勤'),
-                        _buildLegendItem(Colors.lightBlue, 'リモート'),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceAround,
-                      children: [
-                        _buildLegendItem(const Color(0xFF98D8C8), '可能性あり'),
-                        _buildLegendItem(Colors.green, '有給'),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ],
+              ],
+            ),
           ),
-        ),
+        ],
       ),
-    );
+    ),
+  ),
+);
   }
 
   Widget _buildLegendItem(Color color, String text) {
@@ -383,6 +531,7 @@ class _AttendanceHomePageState extends State<AttendanceHomePage> {
         elapsedBreakTime: 0,
         status: MemberStatus.working,
         icon: Icons.face,
+        workHistory: Member.generateDummyWorkHistory(),
       ),
       Member(
         name: '佐藤 花子',
@@ -391,6 +540,7 @@ class _AttendanceHomePageState extends State<AttendanceHomePage> {
         elapsedBreakTime: 0,
         status: MemberStatus.working,
         icon: Icons.face_3,
+        workHistory: Member.generateDummyWorkHistory(),
       ),
       Member(
         name: '鈴木 一郎',
@@ -399,6 +549,7 @@ class _AttendanceHomePageState extends State<AttendanceHomePage> {
         elapsedBreakTime: 0,
         status: MemberStatus.onBreak,
         icon: Icons.face_6,
+        workHistory: Member.generateDummyWorkHistory(),
       ),
       Member(
         name: '髙橋 美咲',
@@ -407,6 +558,7 @@ class _AttendanceHomePageState extends State<AttendanceHomePage> {
         elapsedBreakTime: 0,
         status: MemberStatus.overtime,
         icon: Icons.face_2,
+        workHistory: Member.generateDummyWorkHistory(),
       ),
       Member(
         name: '佐々木 健一',
@@ -415,6 +567,7 @@ class _AttendanceHomePageState extends State<AttendanceHomePage> {
         elapsedBreakTime: 0,
         status: MemberStatus.absent,
         icon: Icons.person_off,
+        workHistory: Member.generateDummyWorkHistory(),
       ),
       Member(
         name: '山田 圭太',
@@ -423,6 +576,7 @@ class _AttendanceHomePageState extends State<AttendanceHomePage> {
         elapsedBreakTime: 0,
         status: MemberStatus.absent,
         icon: Icons.person_off,
+        workHistory: Member.generateDummyWorkHistory(),
       ),
     ];
 
@@ -478,9 +632,63 @@ class _AttendanceHomePageState extends State<AttendanceHomePage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('勤怠管理'), centerTitle: true),
+    if (LoginScreen.loggedInUser.isNotEmpty) {
+      final nameInput = LoginScreen.loggedInUser.trim();
+      Member? loggedInMember;
+      for (var m in members) {
+        if (m.name.replaceAll(' ', '') == nameInput.replaceAll(' ', '')) {
+          loggedInMember = m;
+          break;
+        }
+      }
+      loggedInMember ??= members.first;
+
+      return MemberDetailScreen(
+        member: loggedInMember,
+        onChanged: (updatedMember) => _updateMember(loggedInMember!.name, updatedMember),
+        getLatestMember: () {
+          return members.firstWhere((m) => m.name == loggedInMember!.name);
+        },
+        isTopPage: true,
+      );
+    }
+
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (!didPop) {
+          LoginScreen.loggedInUser = '';
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const LoginScreen(
+                appName: '勤怠管理',
+                originalHome: AttendanceHomePage(),
+              ),
+            ),
+          );
+        }
+      },
+      child: Scaffold(
+      appBar: AppBar(
+        automaticallyImplyLeading: false,
+        title: const Text(
+          '勤怠管理',
+          style: TextStyle(
+            color: Color(0xFF1A1A1A),
+            fontSize: 20.0,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        toolbarHeight: 56.0,
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.white,
+        elevation: 0,
+        centerTitle: true,
+      ),
       body: Container(
+        width: double.infinity,
+        height: double.infinity,
         decoration: const BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topCenter,
@@ -488,12 +696,85 @@ class _AttendanceHomePageState extends State<AttendanceHomePage> {
             colors: [Color(0xFFFFFFFF), Color(0xFFFFDFBF)],
           ),
         ),
-        child: SingleChildScrollView(
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            return SingleChildScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  minHeight: constraints.maxHeight,
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.only(top: 12.0, left: 16.0, right: 16.0, bottom: 16.0),
+                  child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // 「設定」「使い方」トップヘッダー (管理者カラー: #532900)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 12.0),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      OutlinedButton.icon(
+                        onPressed: () {},
+                        style: OutlinedButton.styleFrom(
+                          backgroundColor: Colors.white,
+                          foregroundColor: const Color(0xFF532900),
+                          side: BorderSide(color: const Color(0xFF532900).withOpacity(0.5)),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.0)),
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                        ),
+                        icon: const Icon(Icons.settings, size: 18),
+                        label: const Text('設定'),
+                      ),
+                      PopupMenuButton<String>(
+                        color: Colors.white,
+                        surfaceTintColor: Colors.white,
+                        onSelected: (String value) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              backgroundColor: const Color(0xFF532900),
+                              content: Text('$value が選択されました', style: const TextStyle(color: Colors.white)),
+                              duration: const Duration(seconds: 2),
+                            ),
+                          );
+                        },
+                        itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
+                          const PopupMenuItem<String>(
+                            value: '使い方１',
+                            child: Text('使い方１', style: TextStyle(color: Color(0xFF532900))),
+                          ),
+                          const PopupMenuItem<String>(
+                            value: '使い方２',
+                            child: Text('使い方２', style: TextStyle(color: Color(0xFF532900))),
+                          ),
+                          const PopupMenuItem<String>(
+                            value: '使い方３',
+                            child: Text('使い方３', style: TextStyle(color: Color(0xFF532900))),
+                          ),
+                        ],
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(16.0),
+                            border: Border.all(color: const Color(0xFF532900).withOpacity(0.5)),
+                          ),
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.help_outline, size: 18, color: Color(0xFF532900)),
+                              SizedBox(width: 6),
+                              Text('使い方', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFF532900))),
+                              SizedBox(width: 4),
+                              Icon(Icons.arrow_drop_down, size: 18, color: Color(0xFF532900)),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
                 // Member Header Row
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -566,8 +847,12 @@ class _AttendanceHomePageState extends State<AttendanceHomePage> {
             ),
           ),
         ),
-      ),
-    );
+      );
+    },
+  ),
+),
+),
+);
   }
 }
 
@@ -888,12 +1173,14 @@ class MemberDetailScreen extends StatefulWidget {
   final Member member;
   final Function(Member) onChanged;
   final Member Function() getLatestMember;
+  final bool isTopPage;
 
   const MemberDetailScreen({
     super.key,
     required this.member,
     required this.onChanged,
     required this.getLatestMember,
+    this.isTopPage = false,
   });
 
   @override
@@ -1363,9 +1650,49 @@ class _MemberDetailScreenState extends State<MemberDetailScreen> {
       }
     }
 
-    return Scaffold(
-      appBar: AppBar(title: Text(widget.member.name)),
+    return PopScope(
+      canPop: !widget.isTopPage,
+      onPopInvokedWithResult: (didPop, result) {
+        if (!didPop) {
+          LoginScreen.loggedInUser = '';
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const LoginScreen(
+                appName: '勤怠管理',
+                originalHome: AttendanceHomePage(),
+              ),
+            ),
+          );
+        }
+      },
+      child: Scaffold(
+      appBar: AppBar(
+        automaticallyImplyLeading: !widget.isTopPage,
+        title: const Text(
+          '勤怠管理',
+          style: TextStyle(
+            color: Color(0xFF1A1A1A),
+            fontSize: 20.0,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        toolbarHeight: 56.0,
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.white,
+        elevation: 0,
+        centerTitle: true,
+        leading: widget.isTopPage
+            ? null
+            : IconButton(
+                icon: const Icon(Icons.arrow_back, color: Color(0xFF532900)),
+                tooltip: '戻る',
+                onPressed: () => Navigator.pop(context),
+              ),
+      ),
       body: Container(
+        width: double.infinity,
+        height: double.infinity,
         decoration: const BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topCenter,
@@ -1373,11 +1700,84 @@ class _MemberDetailScreenState extends State<MemberDetailScreen> {
             colors: [Color(0xFFFFFFFF), Color(0xFFFFDFBF)],
           ),
         ),
-        child: SingleChildScrollView(
-          child: Padding(
-            padding: const EdgeInsets.all(24.0),
-            child: Column(
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            return SingleChildScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  minHeight: constraints.maxHeight,
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.only(top: 12.0, left: 16.0, right: 16.0, bottom: 16.0),
+                  child: Column(
               children: [
+                // 「設定」「使い方」トップヘッダー (管理者カラー: #532900)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 12.0),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      OutlinedButton.icon(
+                        onPressed: () {},
+                        style: OutlinedButton.styleFrom(
+                          backgroundColor: Colors.white,
+                          foregroundColor: const Color(0xFF532900),
+                          side: BorderSide(color: const Color(0xFF532900).withOpacity(0.5)),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.0)),
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                        ),
+                        icon: const Icon(Icons.settings, size: 18),
+                        label: const Text('設定'),
+                      ),
+                      PopupMenuButton<String>(
+                        color: Colors.white,
+                        surfaceTintColor: Colors.white,
+                        onSelected: (String value) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              backgroundColor: const Color(0xFF532900),
+                              content: Text('$value が選択されました', style: const TextStyle(color: Colors.white)),
+                              duration: const Duration(seconds: 2),
+                            ),
+                          );
+                        },
+                        itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
+                          const PopupMenuItem<String>(
+                            value: '使い方１',
+                            child: Text('使い方１', style: TextStyle(color: Color(0xFF532900))),
+                          ),
+                          const PopupMenuItem<String>(
+                            value: '使い方２',
+                            child: Text('使い方２', style: TextStyle(color: Color(0xFF532900))),
+                          ),
+                          const PopupMenuItem<String>(
+                            value: '使い方３',
+                            child: Text('使い方３', style: TextStyle(color: Color(0xFF532900))),
+                          ),
+                        ],
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(16.0),
+                            border: Border.all(color: const Color(0xFF532900).withOpacity(0.5)),
+                          ),
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.help_outline, size: 18, color: Color(0xFF532900)),
+                              SizedBox(width: 6),
+                              Text('使い方', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFF532900))),
+                              SizedBox(width: 4),
+                              Icon(Icons.arrow_drop_down, size: 18, color: Color(0xFF532900)),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
                 // 出勤・退勤・早退・休止ボタン
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -1653,8 +2053,12 @@ class _MemberDetailScreenState extends State<MemberDetailScreen> {
             ),
           ),
         ),
-      ),
-    );
+      );
+    },
+  ),
+),
+),
+);
   }
 
   // 時刻を表示するボタン（上のボタン部分）を作成する補助関数
@@ -1744,8 +2148,9 @@ class _MemberDetailScreenState extends State<MemberDetailScreen> {
 // 労働実績画面（週間・月間のグラフと給与内訳を表示）
 class WorkRecordScreen extends StatefulWidget {
   final Member member;
+  final bool embed;
 
-  const WorkRecordScreen({super.key, required this.member});
+  const WorkRecordScreen({super.key, required this.member, this.embed = false});
 
   @override
   State<WorkRecordScreen> createState() => _WorkRecordScreenState();
@@ -1992,30 +2397,47 @@ class _WorkRecordScreenState extends State<WorkRecordScreen> {
   Widget build(BuildContext context) {
     final isWeekly = viewMode == '週間表示';
 
-    return Scaffold(
-      appBar: AppBar(title: Text(widget.member.name)),
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [Color(0xFFFFFFFF), Color(0xFFFFDFBF)],
-          ),
+    final mainContent = Container(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [Color(0xFFFFFFFF), Color(0xFFFFDFBF)],
         ),
-        child: SingleChildScrollView(
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // 表示モード切り替えと月選択
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
+      ),
+      child: SingleChildScrollView(
+        child: Column(
+          children: [
+            if (!widget.embed) buildAttendanceUserHeader(context),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+              // 表示モード切り替えと月選択
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  DropdownButton<String>(
+                    value: viewMode,
+                    items:
+                        ['週間表示', '月間表示'].map((String value) {
+                          return DropdownMenuItem<String>(
+                            value: value,
+                            child: Text(value),
+                          );
+                        }).toList(),
+                    onChanged: (String? newValue) {
+                      setState(() {
+                        viewMode = newValue!;
+                      });
+                    },
+                  ),
+                  if (!isWeekly)
                     DropdownButton<String>(
-                      value: viewMode,
+                      value: selectedMonth,
                       items:
-                          ['週間表示', '月間表示'].map((String value) {
+                          availableMonths.map((String value) {
                             return DropdownMenuItem<String>(
                               value: value,
                               child: Text(value),
@@ -2023,319 +2445,351 @@ class _WorkRecordScreenState extends State<WorkRecordScreen> {
                           }).toList(),
                       onChanged: (String? newValue) {
                         setState(() {
-                          viewMode = newValue!;
+                          selectedMonth = newValue!;
                         });
                       },
                     ),
-                    if (!isWeekly)
-                      DropdownButton<String>(
-                        value: selectedMonth,
-                        items:
-                            availableMonths.map((String value) {
-                              return DropdownMenuItem<String>(
-                                value: value,
-                                child: Text(value),
-                              );
-                            }).toList(),
-                        onChanged: (String? newValue) {
-                          setState(() {
-                            selectedMonth = newValue!;
-                            // 年の調整（1月を選択した際に前年になるケースなどへの対応は簡易化のため現在の年に固定）
-                            // 必要に応じてDateTimeから年を逆算することも可能
-                          });
-                        },
-                      ),
-                  ],
-                ),
-                const SizedBox(height: 20),
-                // 棒グラフ表示エリア
-                Container(
-                  color: Colors.white,
-                  child: SizedBox(
-                    height: 250,
-                    child:
-                        isWeekly ? _buildWeeklyChart() : _buildMonthlyChart(),
-                  ),
-                ),
-                const SizedBox(height: 20),
-                // Summary
-                if (isWeekly) ...[
-                  // 内訳ボックス（基本給、時間外、交通費など）
-                  Container(
-                    width: double.infinity,
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      border: Border.all(color: Colors.grey),
-                    ),
-                    padding: const EdgeInsets.all(8.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          '計${weeklyData.fold(0.0, (sum, item) => sum + (item['basic'] as double) + (item['overtime'] as double) + (item['night'] as double) + (item['leave'] as double)).toStringAsFixed(1)}時間',
-                          style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const Text(
-                          '基本時間10：00〜15：00',
-                          style: TextStyle(fontSize: 14, color: Colors.grey),
-                        ),
-                        const SizedBox(height: 16),
-                        _buildBreakdownItem(
-                          Colors.blue,
-                          '基本給 1000×${weeklyData.fold(0.0, (sum, item) => sum + item['basic']).toStringAsFixed(1)}時間＝${(weeklyData.fold(0.0, (sum, item) => sum + (item['basic'] as double)) * 1000).toInt()}円',
-                        ),
-                        _buildBreakdownItem(
-                          Colors.lightBlue,
-                          '時間外 1250×${weeklyData.fold(0.0, (sum, item) => sum + item['overtime']).toStringAsFixed(1)}時間＝${(weeklyData.fold(0.0, (sum, item) => sum + (item['overtime'] as double)) * 1250).toInt()}円',
-                        ),
-                        _buildBreakdownItem(
-                          const Color(0xFF98D8C8),
-                          '深夜料金 1500×${weeklyData.fold(0.0, (sum, item) => sum + item['night']).toStringAsFixed(1)}時間＝${(weeklyData.fold(0.0, (sum, item) => sum + (item['night'] as double)) * 1500).toInt()}円',
-                        ),
-                        _buildBreakdownItem(
-                          Colors.green,
-                          '有給休暇 1000×${weeklyData.fold(0.0, (sum, item) => sum + item['leave']).toStringAsFixed(1)}時間＝${(weeklyData.fold(0.0, (sum, item) => sum + (item['leave'] as double)) * 1000).toInt()}円',
-                        ),
-                        const SizedBox(height: 20),
-                        // Transportation
-                        Row(
-                          children: [
-                            const Text('交通費'),
-                            const SizedBox(width: 8),
-                            const SizedBox(
-                              width: 80,
-                              child: TextField(
-                                decoration: InputDecoration(
-                                  isDense: true,
-                                  contentPadding: EdgeInsets.all(8),
-                                  border: OutlineInputBorder(),
-                                  hintText: '660',
-                                  filled: true,
-                                  fillColor: Colors.white,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Text(
-                              '円×$_attendanceCount＝${_attendanceCount * 660}円',
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 20),
-                        const Text('有給休暇　残り2日', style: TextStyle(fontSize: 16)),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                ] else ...[
-                  // 内訳ボックス（基本給、時間外、交通費など）
-                  Container(
-                    width: double.infinity,
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      border: Border.all(color: Colors.grey),
-                    ),
-                    padding: const EdgeInsets.all(8.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          '計${monthlyData.fold(0.0, (sum, item) => sum + (item['basic'] as double) + (item['overtime'] as double) + (item['night'] as double) + (item['leave'] as double)).toStringAsFixed(1)}時間',
-                          style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        _buildBreakdownItem(
-                          Colors.blue,
-                          '基本給 1000×${monthlyData.fold(0.0, (sum, item) => sum + item['basic']).toStringAsFixed(1)}時間＝${(monthlyData.fold(0.0, (sum, item) => sum + (item['basic'] as double)) * 1000).toInt()}円',
-                        ),
-                        _buildBreakdownItem(
-                          Colors.lightBlue,
-                          '時間外 1250×${monthlyData.fold(0.0, (sum, item) => sum + item['overtime']).toStringAsFixed(1)}時間＝${(monthlyData.fold(0.0, (sum, item) => sum + (item['overtime'] as double)) * 1250).toInt()}円',
-                        ),
-                        _buildBreakdownItem(
-                          const Color(0xFF98D8C8),
-                          '深夜料金 1500×${monthlyData.fold(0.0, (sum, item) => sum + item['night']).toStringAsFixed(1)}時間＝${(monthlyData.fold(0.0, (sum, item) => sum + (item['night'] as double)) * 1500).toInt()}円',
-                        ),
-                        _buildBreakdownItem(
-                          Colors.green,
-                          '有給休暇 1000×${monthlyData.fold(0.0, (sum, item) => sum + item['leave']).toStringAsFixed(1)}時間＝${(monthlyData.fold(0.0, (sum, item) => sum + (item['leave'] as double)) * 1000).toInt()}円',
-                        ),
-                        const SizedBox(height: 20),
-                        // Transportation
-                        Row(
-                          children: [
-                            const Text('交通費'),
-                            const SizedBox(width: 8),
-                            const SizedBox(
-                              width: 80,
-                              child: TextField(
-                                decoration: InputDecoration(
-                                  isDense: true,
-                                  contentPadding: EdgeInsets.all(8),
-                                  border: OutlineInputBorder(),
-                                  hintText: '660',
-                                  filled: true,
-                                  fillColor: Colors.white,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Text(
-                              '円×$_monthlyAttendanceCount＝${_monthlyAttendanceCount * 660}円',
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 20),
-                        const Text('有給休暇　残り2日', style: TextStyle(fontSize: 16)),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 20),
                 ],
-                // Calendar
-                Center(
-                  child: Text(
-                    '${selectedYear}年$selectedMonth',
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
+              ),
+              const SizedBox(height: 20),
+              // 棒グラフ表示エリア
+              Container(
+                color: Colors.white,
+                child: SizedBox(
+                  height: 250,
+                  child:
+                      isWeekly ? _buildWeeklyChart() : _buildMonthlyChart(),
+                ),
+              ),
+              const SizedBox(height: 20),
+              // Summary
+              if (isWeekly) ...[
+                // 内訳ボックス（基本給、時間外、交通費など）
+                Container(
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    border: Border.all(color: Colors.grey),
+                  ),
+                  padding: const EdgeInsets.all(8.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '計${weeklyData.fold(0.0, (sum, item) => sum + (item['basic'] as double) + (item['overtime'] as double) + (item['night'] as double) + (item['leave'] as double)).toStringAsFixed(1)}時間',
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const Text(
+                        '基本時間10：00〜15：00',
+                        style: TextStyle(fontSize: 14, color: Colors.grey),
+                      ),
+                      const SizedBox(height: 16),
+                      _buildBreakdownItem(
+                        const Color(0xFF1B2A47),
+                        '基本給 1000×${weeklyData.fold(0.0, (sum, item) => sum + item['basic']).toStringAsFixed(1)}時間＝${(weeklyData.fold(0.0, (sum, item) => sum + (item['basic'] as double)) * 1000).toInt()}円',
+                      ),
+                      _buildBreakdownItem(
+                        const Color(0xFFFF9800),
+                        '時間外 1250×${weeklyData.fold(0.0, (sum, item) => sum + item['overtime']).toStringAsFixed(1)}時間＝${(weeklyData.fold(0.0, (sum, item) => sum + (item['overtime'] as double)) * 1250).toInt()}円',
+                      ),
+                      _buildBreakdownItem(
+                        const Color(0xFFAB47BC),
+                        '深夜料金 1500×${weeklyData.fold(0.0, (sum, item) => sum + item['night']).toStringAsFixed(1)}時間＝${(weeklyData.fold(0.0, (sum, item) => sum + (item['night'] as double)) * 1500).toInt()}円',
+                      ),
+                      _buildBreakdownItem(
+                        const Color(0xFFF48FB1),
+                        '有給休暇 1000×${weeklyData.fold(0.0, (sum, item) => sum + item['leave']).toStringAsFixed(1)}時間＝${(weeklyData.fold(0.0, (sum, item) => sum + (item['leave'] as double)) * 1000).toInt()}円',
+                      ),
+                      const SizedBox(height: 20),
+                      // Transportation
+                      Row(
+                        children: [
+                          const Text('交通費'),
+                          const SizedBox(width: 8),
+                          const SizedBox(
+                            width: 80,
+                            child: TextField(
+                              decoration: InputDecoration(
+                                isDense: true,
+                                contentPadding: EdgeInsets.all(8),
+                                border: OutlineInputBorder(),
+                                hintText: '660',
+                                filled: true,
+                                fillColor: Colors.white,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            '円×$_attendanceCount＝${_attendanceCount * 660}円',
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 20),
+                      const Text('有給休暇　残り2日', style: TextStyle(fontSize: 16)),
+                    ],
                   ),
                 ),
-                const SizedBox(height: 10),
-                _buildCalendar(),
+                const SizedBox(height: 20),
+              ] else ...[
+                // 内訳ボックス（基本給、時間外、交通費など）
+                Container(
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    border: Border.all(color: Colors.grey),
+                  ),
+                  padding: const EdgeInsets.all(8.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '計${monthlyData.fold(0.0, (sum, item) => sum + (item['basic'] as double) + (item['overtime'] as double) + (item['night'] as double) + (item['leave'] as double)).toStringAsFixed(1)}時間',
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      _buildBreakdownItem(
+                        const Color(0xFF1B2A47),
+                        '基本給 1000×${monthlyData.fold(0.0, (sum, item) => sum + item['basic']).toStringAsFixed(1)}時間＝${(monthlyData.fold(0.0, (sum, item) => sum + (item['basic'] as double)) * 1000).toInt()}円',
+                      ),
+                      _buildBreakdownItem(
+                        const Color(0xFFFF9800),
+                        '時間外 1250×${monthlyData.fold(0.0, (sum, item) => sum + item['overtime']).toStringAsFixed(1)}時間＝${(monthlyData.fold(0.0, (sum, item) => sum + (item['overtime'] as double)) * 1250).toInt()}円',
+                      ),
+                      _buildBreakdownItem(
+                        const Color(0xFFAB47BC),
+                        '深夜料金 1500×${monthlyData.fold(0.0, (sum, item) => sum + item['night']).toStringAsFixed(1)}時間＝${(monthlyData.fold(0.0, (sum, item) => sum + (item['night'] as double)) * 1500).toInt()}円',
+                      ),
+                      _buildBreakdownItem(
+                        const Color(0xFFF48FB1),
+                        '有給休暇 1000×${monthlyData.fold(0.0, (sum, item) => sum + item['leave']).toStringAsFixed(1)}時間＝${(monthlyData.fold(0.0, (sum, item) => sum + (item['leave'] as double)) * 1000).toInt()}円',
+                      ),
+                      const SizedBox(height: 20),
+                      // Transportation
+                      Row(
+                        children: [
+                          const Text('交通費'),
+                          const SizedBox(width: 8),
+                          const SizedBox(
+                            width: 80,
+                            child: TextField(
+                              decoration: InputDecoration(
+                                isDense: true,
+                                contentPadding: EdgeInsets.all(8),
+                                border: OutlineInputBorder(),
+                                hintText: '660',
+                                filled: true,
+                                fillColor: Colors.white,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            '円×$_monthlyAttendanceCount＝${_monthlyAttendanceCount * 660}円',
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 20),
+                      const Text('有給休暇　残り2日', style: TextStyle(fontSize: 16)),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 20),
               ],
-            ),
+              // Calendar
+              Center(
+                child: Text(
+                  '${selectedYear}年$selectedMonth',
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
+              _buildCalendar(),
+            ],
           ),
         ),
+          ],
+        ),
       ),
+    );
+
+    if (widget.embed) {
+      return mainContent;
+    }
+
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(
+          widget.member.name,
+          style: const TextStyle(
+            color: Color(0xFF1A1A1A),
+            fontSize: 20.0,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        toolbarHeight: 56.0,
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.white,
+        elevation: 0,
+        centerTitle: true,
+      ),
+      body: mainContent,
     );
   }
 
   Widget _buildWeeklyChart() {
-    double maxHours = 8.0;
-    return Stack(
+    double maxHours = 14.0;
+    return Column(
       children: [
-        // Grid lines
-        Positioned(
-          left: 20,
-          right: 0,
-          top: 0,
-          bottom: 20,
-          child: CustomPaint(painter: GridPainter()),
-        ),
-        // Y-axis labels
-        Positioned(
-          left: 0,
-          top: 0,
-          bottom: 20,
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        Expanded(
+          child: Stack(
             children: [
-              const Text('10', style: TextStyle(fontSize: 10)),
-              const Text('8', style: TextStyle(fontSize: 10)),
-              const Text('6', style: TextStyle(fontSize: 10)),
-              const Text('4', style: TextStyle(fontSize: 10)),
-              const Text('2', style: TextStyle(fontSize: 10)),
-              const Text('0', style: TextStyle(fontSize: 10)),
+              // Grid lines
+              Positioned.fill(
+                child: CustomPaint(painter: GridPainter()),
+              ),
+              // Y-axis labels
+              Positioned(
+                left: 0,
+                top: 0,
+                bottom: 0,
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text('14', style: TextStyle(fontSize: 10)),
+                    const Text('12', style: TextStyle(fontSize: 10)),
+                    const Text('10', style: TextStyle(fontSize: 10)),
+                    const Text('8', style: TextStyle(fontSize: 10)),
+                    const Text('6', style: TextStyle(fontSize: 10)),
+                    const Text('4', style: TextStyle(fontSize: 10)),
+                    const Text('2', style: TextStyle(fontSize: 10)),
+                    const Text('0', style: TextStyle(fontSize: 10)),
+                  ],
+                ),
+              ),
+              // Chart
+              Positioned.fill(
+                left: 20,
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final chartHeight = constraints.maxHeight;
+                    return Row(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children:
+                          weeklyData.map((data) {
+                            double total =
+                                data['basic'] +
+                                data['overtime'] +
+                                data['night'] +
+                                data['leave'];
+                            String tooltipText =
+                                '基本給: ${data['basic']}h\n時間外: ${data['overtime']}h\n深夜: ${data['night']}h\n有給: ${data['leave']}h';
+
+                            return Tooltip(
+                              message: tooltipText,
+                              child: GestureDetector(
+                                onTap: () {
+                                  showDialog(
+                                    context: context,
+                                    builder: (BuildContext context) {
+                                      return AlertDialog(
+                                        title: Text('${data['day']}曜日の詳細'),
+                                        content: Text(
+                                          '基本給: ${data['basic']}時間\n'
+                                          '時間外: ${data['overtime']}時間\n'
+                                          '深夜料金: ${data['night']}時間\n'
+                                          '有給休暇: ${data['leave']}時間',
+                                        ),
+                                        actions: [
+                                          TextButton(
+                                            onPressed: () => Navigator.of(context).pop(),
+                                            child: const Text('閉じる'),
+                                          ),
+                                        ],
+                                      );
+                                    },
+                                  );
+                                },
+                                child: MouseRegion(
+                                  cursor: SystemMouseCursors.click,
+                                  child: Column(
+                                    mainAxisAlignment: MainAxisAlignment.end,
+                                    children: [
+                                      if (total > 0)
+                                        Container(
+                                          width: 30,
+                                          height: (total / maxHours) * chartHeight,
+                                          child: Column(
+                                            children: [
+                                              if (data['leave'] > 0)
+                                                Expanded(
+                                                  flex: (data['leave'] * 60).round(),
+                                                  child: Container(color: const Color(0xFFF48FB1)),
+                                                ),
+                                              if (data['night'] > 0)
+                                                Expanded(
+                                                  flex: (data['night'] * 60).round(),
+                                                  child: Container(
+                                                    color: const Color(0xFFAB47BC),
+                                                  ),
+                                                ),
+                                              if (data['overtime'] > 0)
+                                                Expanded(
+                                                  flex: (data['overtime'] * 60).round(),
+                                                  child: Container(
+                                                    color: const Color(0xFFFF9800),
+                                                  ),
+                                                ),
+                                              if (data['basic'] > 0)
+                                                Expanded(
+                                                  flex: (data['basic'] * 60).round(),
+                                                  child: Container(color: const Color(0xFF1B2A47)),
+                                                ),
+                                            ],
+                                          ),
+                                        )
+                                      else
+                                        Container(width: 30, height: 0),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            );
+                          }).toList(),
+                    );
+                  }
+                ),
+              ),
             ],
           ),
         ),
-        // Chart
+        const SizedBox(height: 4),
+        // X-axis labels
         Padding(
           padding: const EdgeInsets.only(left: 20),
           child: Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children:
-                weeklyData.map((data) {
-                  double total =
-                      data['basic'] +
-                      data['overtime'] +
-                      data['night'] +
-                      data['leave'];
-                  String tooltipText =
-                      '基本給: ${data['basic']}h\n時間外: ${data['overtime']}h\n深夜: ${data['night']}h\n有給: ${data['leave']}h';
-
-                  return Tooltip(
-                    message: tooltipText,
-                    child: GestureDetector(
-                      onTap: () {
-                        showDialog(
-                          context: context,
-                          builder: (BuildContext context) {
-                            return AlertDialog(
-                              title: Text('${data['day']}曜日の詳細'),
-                              content: Text(
-                                '基本給: ${data['basic']}時間\n'
-                                '時間外: ${data['overtime']}時間\n'
-                                '深夜料金: ${data['night']}時間\n'
-                                '有給休暇: ${data['leave']}時間',
-                              ),
-                              actions: [
-                                TextButton(
-                                  onPressed: () => Navigator.of(context).pop(),
-                                  child: const Text('閉じる'),
-                                ),
-                              ],
-                            );
-                          },
-                        );
-                      },
-                      child: MouseRegion(
-                        cursor: SystemMouseCursors.click,
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.end,
-                          children: [
-                            if (total > 0)
-                              Container(
-                                width: 40,
-                                height: (total / maxHours) * 200,
-                                child: Column(
-                                  children: [
-                                    if (data['leave'] > 0)
-                                      Expanded(
-                                        flex: (data['leave'] * 60).round(),
-                                        child: Container(color: Colors.green),
-                                      ),
-                                    if (data['night'] > 0)
-                                      Expanded(
-                                        flex: (data['night'] * 60).round(),
-                                        child: Container(
-                                          color: const Color(0xFF98D8C8),
-                                        ),
-                                      ),
-                                    if (data['overtime'] > 0)
-                                      Expanded(
-                                        flex: (data['overtime'] * 60).round(),
-                                        child: Container(
-                                          color: Colors.lightBlue,
-                                        ),
-                                      ),
-                                    if (data['basic'] > 0)
-                                      Expanded(
-                                        flex: (data['basic'] * 60).round(),
-                                        child: Container(color: Colors.blue),
-                                      ),
-                                  ],
-                                ),
-                              )
-                            else
-                              Container(width: 40, height: 10),
-                            const SizedBox(height: 4),
-                            Text(data['day']),
-                          ],
-                        ),
-                      ),
-                    ),
-                  );
-                }).toList(),
+            children: weeklyData.map((data) {
+              return SizedBox(
+                width: 30,
+                child: Center(
+                  child: Text(
+                    data['day'],
+                    style: const TextStyle(fontSize: 10),
+                  ),
+                ),
+              );
+            }).toList(),
           ),
         ),
       ],
@@ -2343,139 +2797,156 @@ class _WorkRecordScreenState extends State<WorkRecordScreen> {
   }
 
   Widget _buildMonthlyChart() {
-    double maxHours = 12.0;
+    double maxHours = 14.0;
     final displayDays = [1, 4, 7, 10, 13, 16, 19, 22, 25, 28, 30];
 
-    return Stack(
+    return Column(
       children: [
-        // Grid lines
-        Positioned(
-          left: 20,
-          right: 0,
-          top: 0,
-          bottom: 20,
-          child: CustomPaint(painter: GridPainter()),
-        ),
-        // Y-axis labels
-        Positioned(
-          left: 0,
-          top: 0,
-          bottom: 20,
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        Expanded(
+          child: Stack(
             children: [
-              const Text('10', style: TextStyle(fontSize: 10)),
-              const Text('8', style: TextStyle(fontSize: 10)),
-              const Text('6', style: TextStyle(fontSize: 10)),
-              const Text('4', style: TextStyle(fontSize: 10)),
-              const Text('2', style: TextStyle(fontSize: 10)),
-              const Text('0', style: TextStyle(fontSize: 10)),
+              // Grid lines
+              Positioned.fill(
+                child: CustomPaint(painter: GridPainter()),
+              ),
+              // Y-axis labels
+              Positioned(
+                left: 0,
+                top: 0,
+                bottom: 0,
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text('14', style: TextStyle(fontSize: 10)),
+                    const Text('12', style: TextStyle(fontSize: 10)),
+                    const Text('10', style: TextStyle(fontSize: 10)),
+                    const Text('8', style: TextStyle(fontSize: 10)),
+                    const Text('6', style: TextStyle(fontSize: 10)),
+                    const Text('4', style: TextStyle(fontSize: 10)),
+                    const Text('2', style: TextStyle(fontSize: 10)),
+                    const Text('0', style: TextStyle(fontSize: 10)),
+                  ],
+                ),
+              ),
+              // Chart
+              Positioned.fill(
+                left: 20,
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final chartHeight = constraints.maxHeight;
+                    return Row(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: List.generate(monthlyData.length, (index) {
+                        final data = monthlyData[index];
+                        final day = index + 1;
+                        double total =
+                            data['basic'] +
+                            data['overtime'] +
+                            data['night'] +
+                            data['leave'];
+                        String tooltipText =
+                            '$day日\n基本給: ${data['basic']}h\n時間外: ${data['overtime']}h\n深夜: ${data['night']}h\n有給: ${data['leave']}h';
+
+                        return Expanded(
+                          child: Tooltip(
+                            message: tooltipText,
+                            child: GestureDetector(
+                              onTap: () {
+                                showDialog(
+                                  context: context,
+                                  builder: (BuildContext context) {
+                                    return AlertDialog(
+                                      title: Text('$day日の詳細'),
+                                      content: Text(
+                                        '基本給: ${data['basic']}時間\n'
+                                        '時間外: ${data['overtime']}時間\n'
+                                        '深夜料金: ${data['night']}時間\n'
+                                        '有給休暇: ${data['leave']}時間',
+                                      ),
+                                      actions: [
+                                        TextButton(
+                                          onPressed: () => Navigator.of(context).pop(),
+                                          child: const Text('閉じる'),
+                                        ),
+                                      ],
+                                    );
+                                  },
+                                );
+                              },
+                              child: MouseRegion(
+                                cursor: SystemMouseCursors.click,
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(horizontal: 1.0),
+                                  child: Column(
+                                    mainAxisAlignment: MainAxisAlignment.end,
+                                    children: [
+                                      if (total > 0)
+                                        Container(
+                                          height: (total / maxHours) * chartHeight,
+                                          child: Column(
+                                            children: [
+                                              if (data['leave'] > 0)
+                                                Expanded(
+                                                  flex: (data['leave'] * 60).round(),
+                                                  child: Container(color: const Color(0xFFF48FB1)),
+                                                ),
+                                              if (data['night'] > 0)
+                                                Expanded(
+                                                  flex: (data['night'] * 60).round(),
+                                                  child: Container(
+                                                    color: const Color(0xFFAB47BC),
+                                                  ),
+                                                ),
+                                              if (data['overtime'] > 0)
+                                                Expanded(
+                                                  flex: (data['overtime'] * 60).round(),
+                                                  child: Container(
+                                                    color: const Color(0xFFFF9800),
+                                                  ),
+                                                ),
+                                              if (data['basic'] > 0)
+                                                Expanded(
+                                                  flex: (data['basic'] * 60).round(),
+                                                  child: Container(color: const Color(0xFF1B2A47)),
+                                                ),
+                                            ],
+                                          ),
+                                        )
+                                      else
+                                        Container(height: 0),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        );
+                      }),
+                    );
+                  }
+                ),
+              ),
             ],
           ),
         ),
-        // Chart
+        const SizedBox(height: 7),
+        // X-axis labels
         Padding(
           padding: const EdgeInsets.only(left: 20),
           child: Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: List.generate(30, (index) {
-              final data = monthlyData[index];
+            children: List.generate(monthlyData.length, (index) {
               final day = index + 1;
-              double total =
-                  data['basic'] +
-                  data['overtime'] +
-                  data['night'] +
-                  data['leave'];
-              String tooltipText =
-                  '$day日\n基本給: ${data['basic']}h\n時間外: ${data['overtime']}h\n深夜: ${data['night']}h\n有給: ${data['leave']}h';
-
               return Expanded(
-                child: Tooltip(
-                  message: tooltipText,
-                  child: GestureDetector(
-                    onTap: () {
-                      showDialog(
-                        context: context,
-                        builder: (BuildContext context) {
-                          return AlertDialog(
-                            title: Text('$day日の詳細'),
-                            content: Text(
-                              '基本給: ${data['basic']}時間\n'
-                              '時間外: ${data['overtime']}時間\n'
-                              '深夜料金: ${data['night']}時間\n'
-                              '有給休暇: ${data['leave']}時間',
-                            ),
-                            actions: [
-                              TextButton(
-                                onPressed: () => Navigator.of(context).pop(),
-                                child: const Text('閉じる'),
-                              ),
-                            ],
-                          );
-                        },
-                      );
-                    },
-                    child: MouseRegion(
-                      cursor: SystemMouseCursors.click,
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 1.0),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.end,
-                          children: [
-                            // 合計時間が0より大きい場合のみ、棒グラフを表示します
-                            if (total > 0)
-                              Container(
-                                // 最大時間に対する割合でグラフの高さを決めます（最大200ピクセル）
-                                height: (total / maxHours) * 200,
-                                child: Column(
-                                  children: [
-                                    // 各項目の時間（有給、深夜など）に合わせて、色のついた部分の比率（flex）を決めます
-                                    if (data['leave'] > 0)
-                                      Expanded(
-                                        flex: (data['leave'] * 60).round(),
-                                        child: Container(color: Colors.green),
-                                      ),
-                                    if (data['night'] > 0)
-                                      Expanded(
-                                        flex: (data['night'] * 60).round(),
-                                        child: Container(
-                                          color: const Color(0xFF98D8C8),
-                                        ),
-                                      ),
-                                    if (data['overtime'] > 0)
-                                      Expanded(
-                                        flex: (data['overtime'] * 60).round(),
-                                        child: Container(
-                                          color: Colors.lightBlue,
-                                        ),
-                                      ),
-                                    if (data['basic'] > 0)
-                                      Expanded(
-                                        flex: (data['basic'] * 60).round(),
-                                        child: Container(color: Colors.blue),
-                                      ),
-                                  ],
-                                ),
-                              )
-                            else
-                              // データがない場合は、高さ10ピクセルの空のスペースを表示します
-                              Container(height: 10),
-                            const SizedBox(height: 7),
-                            SizedBox(
-                              height: 8,
-                              child:
-                                  displayDays.contains(day)
-                                      ? Text(
-                                        '$day',
-                                        style: const TextStyle(fontSize: 6),
-                                      )
-                                      : null,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
+                child: SizedBox(
+                  height: 12,
+                  child: displayDays.contains(day)
+                      ? Center(
+                          child: Text(
+                            '$day',
+                            style: const TextStyle(fontSize: 8, fontWeight: FontWeight.bold),
+                          ),
+                        )
+                      : null,
                 ),
               );
             }),
@@ -2605,9 +3076,9 @@ class GridPainter extends CustomPainter {
           ..strokeWidth = 1
           ..style = PaintingStyle.stroke;
 
-    // Draw horizontal grid lines (0, 2, 4, 6, 8, 10 hours)
-    for (int i = 0; i <= 5; i++) {
-      double y = size.height - (size.height / 5 * i);
+    // Draw horizontal grid lines (0, 2, 4, 6, 8, 10, 12, 14 hours)
+    for (int i = 0; i <= 7; i++) {
+      double y = size.height - (size.height / 7 * i);
       canvas.drawLine(Offset(0, y), Offset(size.width, y), paint);
     }
   }
@@ -2620,8 +3091,15 @@ class GridPainter extends CustomPainter {
 // シフト希望表画面（カレンダータップで希望を入力）
 class ShiftRequestScreen extends StatefulWidget {
   final Member member;
+  final bool embed;
+  final bool isAdminMode;
 
-  const ShiftRequestScreen({super.key, required this.member});
+  const ShiftRequestScreen({
+    super.key,
+    required this.member,
+    this.embed = false,
+    this.isAdminMode = false,
+  });
 
   @override
   State<ShiftRequestScreen> createState() => _ShiftRequestScreenState();
@@ -2642,6 +3120,9 @@ class _ShiftRequestScreenState extends State<ShiftRequestScreen> {
     final now = DateTime.now();
     selectedYear = now.year;
     selectedMonth = now.month;
+    if (widget.isAdminMode) {
+      notesController.text = '来月は水曜日と金曜日に多めに出勤できます。';
+    }
   }
 
   // 利用可能な月のリストを取得（今月と来月）
@@ -2657,13 +3138,13 @@ class _ShiftRequestScreenState extends State<ShiftRequestScreen> {
   Color _getColorForState(int state) {
     switch (state) {
       case 1:
-        return Colors.blue; // 出勤予定
+        return const Color(0xFF1B2A47); // 出勤予定
       case 2:
-        return Colors.lightBlue; // リモートワーク予定
+        return const Color(0xFF5C6BC0); // リモートワーク予定
       case 3:
-        return const Color(0xFF98D8C8); // 出勤可能性あり (mint green)
+        return const Color(0xFFAB47BC); // 出勤可能性あり (明るい紫)
       case 4:
-        return Colors.green; // 有給休暇
+        return const Color(0xFFF48FB1); // 有給休暇
       default:
         return Colors.grey[200]!;
     }
@@ -2686,110 +3167,166 @@ class _ShiftRequestScreenState extends State<ShiftRequestScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: Text('${widget.member.name} - シフト希望表')),
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [Color(0xFFFFFFFF), Color(0xFFFFDFBF)],
-          ),
+    final mainContent = Container(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [Color(0xFFFFFFFF), Color(0xFFFFDFBF)],
         ),
-        child: SingleChildScrollView(
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Month Selection Dropdown
-                Center(
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.grey),
-                    ),
-                    child: DropdownButton<DateTime>(
-                      value: DateTime(selectedYear, selectedMonth, 1),
-                      underline: Container(),
-                      items:
-                          availableMonths.map((date) {
-                            return DropdownMenuItem<DateTime>(
-                              value: date,
-                              child: Text(
-                                '${date.year}年${date.month}月',
-                                style: const TextStyle(
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            );
-                          }).toList(),
-                      onChanged: (DateTime? newValue) {
-                        if (newValue != null) {
-                          setState(() {
-                            selectedYear = newValue.year;
-                            selectedMonth = newValue.month;
-                          });
-                        }
-                      },
-                    ),
+      ),
+      child: SingleChildScrollView(
+        child: Column(
+          children: [
+            if (!widget.embed) buildAttendanceUserHeader(context),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+              // Month Selection Dropdown
+              Center(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 4,
                   ),
-                ),
-                const SizedBox(height: 20),
-                // Calendar
-                _buildCalendar(),
-                const SizedBox(height: 30),
-                // 凡例（色の意味説明）
-                // Legend Box
-                Container(
-                  width: double.infinity,
                   decoration: BoxDecoration(
                     color: Colors.white,
+                    borderRadius: BorderRadius.circular(8),
                     border: Border.all(color: Colors.grey),
                   ),
-                  padding: const EdgeInsets.all(8.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        '日付タップの回数で編集できます',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                      _buildLegendItem(
-                        Colors.blue,
-                        '出勤予定',
-                        _getCountForState(1),
-                      ),
-                      _buildLegendItem(
-                        Colors.lightBlue,
-                        'リモートワーク予定',
-                        _getCountForState(2),
-                      ),
-                      _buildLegendItem(
-                        const Color(0xFF98D8C8),
-                        '出勤可能性あり',
-                        _getCountForState(3),
-                      ),
-                      _buildLegendItem(
-                        Colors.green,
-                        '有給休暇　残り2日',
-                        _getCountForState(4),
-                      ),
-                    ],
+                  child: DropdownButton<DateTime>(
+                    value: DateTime(selectedYear, selectedMonth, 1),
+                    underline: Container(),
+                    items:
+                        availableMonths.map((date) {
+                          return DropdownMenuItem<DateTime>(
+                            value: date,
+                            child: Text(
+                              '${date.year}年${date.month}月',
+                              style: const TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          );
+                        }).toList(),
+                    onChanged: (DateTime? newValue) {
+                      if (newValue != null) {
+                        setState(() {
+                          selectedYear = newValue.year;
+                          selectedMonth = newValue.month;
+                        });
+                      }
+                    },
                   ),
                 ),
-                const SizedBox(height: 30),
-                // 提出ボタン
+              ),
+              const SizedBox(height: 20),
+              // Calendar
+              _buildCalendar(),
+              const SizedBox(height: 30),
+              // 凡例（色の意味説明）
+              // Legend Box
+              Container(
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  border: Border.all(color: Colors.grey),
+                ),
+                padding: const EdgeInsets.all(8.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      '日付タップの回数で編集できます',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    _buildLegendItem(
+                      const Color(0xFF1B2A47),
+                      '出勤予定',
+                      _getCountForState(1),
+                    ),
+                    _buildLegendItem(
+                      const Color(0xFF5C6BC0),
+                      'リモートワーク予定',
+                      _getCountForState(2),
+                    ),
+                    _buildLegendItem(
+                      const Color(0xFFAB47BC),
+                      '出勤可能性あり',
+                      _getCountForState(3),
+                    ),
+                    _buildLegendItem(
+                      const Color(0xFFF48FB1),
+                      '有給休暇　残り2日',
+                      _getCountForState(4),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 30),
+              // 提出ボタンまたは保存・確定ボタン
+              if (widget.isAdminMode)
+                Row(
+                  children: [
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: () {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('シフト希望を保存しました')),
+                          );
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.blue,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                        child: const Text(
+                          '保存',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: () {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('シフト希望を確定しました')),
+                          );
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.green,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                        child: const Text(
+                          '確定',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                )
+              else
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
@@ -2826,29 +3363,54 @@ class _ShiftRequestScreenState extends State<ShiftRequestScreen> {
                     ),
                   ),
                 ),
-                const SizedBox(height: 20),
-                // 備考入力欄
-                const Text(
-                  '備考',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              const SizedBox(height: 20),
+              // 備考入力欄
+              const Text(
+                '備考',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 10),
+              TextField(
+                controller: notesController,
+                enabled: !widget.isAdminMode,
+                maxLines: 4,
+                decoration: const InputDecoration(
+                  border: OutlineInputBorder(),
+                  hintText: 'メモを入力してください',
+                  filled: true,
+                  fillColor: Colors.white,
                 ),
-                const SizedBox(height: 10),
-                TextField(
-                  controller: notesController,
-                  maxLines: 4,
-                  decoration: const InputDecoration(
-                    border: OutlineInputBorder(),
-                    hintText: 'メモを入力してください',
-                    filled: true,
-                    fillColor: Colors.white,
-                  ),
-                ),
-                const SizedBox(height: 20),
-              ],
-            ),
+              ),
+              const SizedBox(height: 20),
+            ],
           ),
         ),
+          ],
+        ),
       ),
+    );
+
+    if (widget.embed) {
+      return mainContent;
+    }
+
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(
+          '${widget.member.name} - シフト希望表',
+          style: const TextStyle(
+            color: Color(0xFF1A1A1A),
+            fontSize: 20.0,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        toolbarHeight: 56.0,
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.white,
+        elevation: 0,
+        centerTitle: true,
+      ),
+      body: mainContent,
     );
   }
 
@@ -2936,7 +3498,7 @@ class _ShiftRequestScreenState extends State<ShiftRequestScreen> {
                   child: Text(
                     '$day',
                     style: TextStyle(
-                      color: state > 0 ? Colors.white : Colors.black,
+                      color: state == 4 ? Colors.black87 : (state > 0 ? Colors.white : Colors.black),
                       fontWeight:
                           state > 0 ? FontWeight.bold : FontWeight.normal,
                     ),
@@ -2983,8 +3545,9 @@ class _ShiftRequestScreenState extends State<ShiftRequestScreen> {
 // シフト確認画面（確定したシフトと目標を表示）
 class ShiftConfirmScreen extends StatelessWidget {
   final Member member;
+  final bool embed;
 
-  const ShiftConfirmScreen({super.key, required this.member});
+  const ShiftConfirmScreen({super.key, required this.member, this.embed = false});
 
   // 確定シフトのダミーデータ（日付 -> 状態ID）
   static const Map<int, int> confirmedShifts = {
@@ -3019,95 +3582,120 @@ class ShiftConfirmScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: Text('${member.name} - シフト確認')),
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [Color(0xFFFFFFFF), Color(0xFFFFDFBF)],
-          ),
+    final mainContent = Container(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [Color(0xFFFFFFFF), Color(0xFFFFDFBF)],
         ),
-        child: SingleChildScrollView(
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Title
-                Center(
-                  child: Text(
-                    '${DateTime.now().year}年${DateTime.now().month}月',
-                    style: const TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 20),
-                // 今月の目標表示
-                const Text(
-                  '今月の目標',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 10),
-                _buildGoalItem('１、イラストを完成させる。'),
-                _buildGoalItem('２、勤務日数を増やす'),
-                _buildGoalItem('３、こまめな報告、相談を。'),
-                const SizedBox(height: 30),
-                // カレンダー表示
-                _buildCalendar(),
-                const SizedBox(height: 30),
-                // 凡例（色の意味説明）
-                // Legend Box
-                Container(
-                  width: double.infinity,
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    border: Border.all(color: Colors.grey),
-                  ),
-                  padding: const EdgeInsets.all(8.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        '凡例',
-                        style: TextStyle(
-                          fontSize: 16,
+      ),
+      child: SingleChildScrollView(
+        child: Column(
+          children: [
+            if (!embed) buildAttendanceUserHeader(context),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                    // Title
+                    Center(
+                      child: Text(
+                        '${DateTime.now().year}年${DateTime.now().month}月',
+                        style: const TextStyle(
+                          fontSize: 20,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
-                      const SizedBox(height: 10),
-                      _buildLegendItem(
-                        Colors.blue,
-                        '出勤予定',
-                        _calculateShiftCount(1),
+                    ),
+                    const SizedBox(height: 20),
+                    // 今月の目標表示
+                    const Text(
+                      '今月の目標',
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 10),
+                    _buildGoalItem('１、イラストを完成させる。'),
+                    _buildGoalItem('２、勤務日数を増やす'),
+                    _buildGoalItem('３、こまめな報告、相談を。'),
+                    const SizedBox(height: 30),
+                    // カレンダー表示
+                    _buildCalendar(),
+                    const SizedBox(height: 30),
+                    // 凡例（色の意味説明）
+                    // Legend Box
+                    Container(
+                      width: double.infinity,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        border: Border.all(color: Colors.grey),
                       ),
-                      _buildLegendItem(
-                        Colors.lightBlue,
-                        'リモートワーク予定',
-                        _calculateShiftCount(2),
+                      padding: const EdgeInsets.all(8.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            '凡例',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          _buildLegendItem(
+                            const Color(0xFF1B2A47),
+                            '出勤予定',
+                            _calculateShiftCount(1),
+                          ),
+                          _buildLegendItem(
+                            const Color(0xFF5C6BC0),
+                            'リモートワーク予定',
+                            _calculateShiftCount(2),
+                          ),
+                          _buildLegendItem(
+                            const Color(0xFFAB47BC),
+                            '出勤可能性あり',
+                            _calculateShiftCount(3),
+                          ),
+                          _buildLegendItem(
+                            const Color(0xFFF48FB1),
+                            '有給休暇　残り2日',
+                            _calculateShiftCount(4),
+                          ),
+                        ],
                       ),
-                      _buildLegendItem(
-                        const Color(0xFF98D8C8),
-                        '出勤可能性あり',
-                        _calculateShiftCount(3),
-                      ),
-                      _buildLegendItem(
-                        Colors.green,
-                        '有給休暇　残り2日',
-                        _calculateShiftCount(4),
-                      ),
-                    ],
-                  ),
+                    ),
+                    const SizedBox(height: 20),
+                  ],
                 ),
-                const SizedBox(height: 20),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
+      );
+
+    if (embed) {
+      return mainContent;
+    }
+
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(
+          '${member.name} - シフト確認',
+          style: const TextStyle(
+            color: Color(0xFF1A1A1A),
+            fontSize: 20.0,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        toolbarHeight: 56.0,
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.white,
+        elevation: 0,
+        centerTitle: true,
       ),
+      body: mainContent,
     );
   }
 
@@ -3203,7 +3791,7 @@ class ShiftConfirmScreen extends StatelessWidget {
                 child: Text(
                   '$day',
                   style: TextStyle(
-                    color: state > 0 ? Colors.white : Colors.black,
+                    color: state == 4 ? Colors.black87 : (state > 0 ? Colors.white : Colors.black),
                     fontWeight:
                         state > 0 || isToday
                             ? FontWeight.bold
@@ -3221,13 +3809,13 @@ class ShiftConfirmScreen extends StatelessWidget {
   Color _getColorForState(int state) {
     switch (state) {
       case 1:
-        return Colors.blue; // 出勤予定
+        return const Color(0xFF1B2A47); // 出勤予定
       case 2:
-        return Colors.lightBlue; // リモートワーク予定
+        return const Color(0xFF5C6BC0); // リモートワーク予定
       case 3:
-        return const Color(0xFF98D8C8); // 出勤可能性あり (mint green)
+        return const Color(0xFFAB47BC); // 出勤可能性あり (明るい紫)
       case 4:
-        return Colors.green; // 有給休暇
+        return const Color(0xFFF48FB1); // 有給休暇
       default:
         return Colors.grey[200]!;
     }

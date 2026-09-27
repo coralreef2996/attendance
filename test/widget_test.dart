@@ -15,8 +15,9 @@ void main() {
     // Build our app and trigger a frame.
     await tester.pumpWidget(const AttendanceApp());
 
-    // Verify that our title is present.
-    expect(find.text('勤怠管理'), findsOneWidget);
-    expect(find.text('メンバー'), findsOneWidget);
+    // Verify that our title and toggles are present on login screen.
+    expect(find.text('勤怠管理'), findsWidgets);
+    expect(find.text('利用者'), findsWidgets);
+    expect(find.text('管理者'), findsWidgets);
   });
 }
